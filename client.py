@@ -7,6 +7,8 @@ SECRET_KEY = b"0123456789abcdef"
 # Definizione colori ANSI
 RESET = "\033[0m"   # Reset colore
 GREEN = "\033[92m"  # Verde brillante
+CYAN = "\033[96m"   # Ciano per output ricevuti
+YELLOW = "\033[93m" # Giallo per messaggi inviati
 
 def encrypt_data(data):
     cipher = AES.new(SECRET_KEY, AES.MODE_EAX)
@@ -74,7 +76,6 @@ def connect_to_vpn(server_ip="127.0.0.1", server_port=8080):
         if message.strip().lower() == "/help":
             client.send(encrypt_data("/help"))
             response = client.recv(4096).decode()
-            
             show_help(role)  # Mostra i comandi in base al ruolo
             continue  # Evita di mostrare subito l'input
 
@@ -98,7 +99,9 @@ def connect_to_vpn(server_ip="127.0.0.1", server_port=8080):
         encrypted_message = encrypt_data(message)
         client.send(encrypted_message)
         response = client.recv(4096)
-        print(f"📩 Messaggio ricevuto dal server: {response.decode()}")
+
+        # 📩 Aggiunge colore ai messaggi ricevuti dal server
+        print(f"{CYAN}📩 Messaggio ricevuto dal server:{RESET} {response.decode()}")
 
 if __name__ == "__main__":
     connect_to_vpn()

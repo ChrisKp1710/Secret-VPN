@@ -8,7 +8,14 @@ from Crypto.Cipher import AES
 
 USER_DB_FILE = "users.db"
 SECRET_KEY = b"0123456789abcdef"
-server_running = True  # Variabile globale per il controllo del server
+server_running = True  
+
+# Definizione colori ANSI
+RESET = "\033[0m"   # Reset colore
+GREEN = "\033[92m"  # Verde brillante
+RED = "\033[91m"    # Rosso per errori
+CYAN = "\033[96m"   # Ciano per ricezione messaggi
+YELLOW = "\033[93m" # Giallo per avvisi
 
 def load_users():
     if not os.path.exists(USER_DB_FILE):
@@ -31,7 +38,7 @@ def decrypt_data(data):
 
 def handle_client(client_socket, addr):
     global server_running
-    print(f"✅ Connessione accettata da {addr}")
+    print(f"{GREEN}✅ Connessione accettata da {addr}{RESET}")
 
     try:
         action = client_socket.recv(1024).decode().strip()
@@ -44,25 +51,25 @@ def handle_client(client_socket, addr):
 
         if action == "register":
             if username in users:
-                client_socket.send("❌ Errore: Username già registrato!".encode("utf-8"))
+                client_socket.send("❌ Errore: Username già registrato!".encode())
                 client_socket.close()
                 return
             users[username] = {"password": hashed_password, "role": "user"}
             if username == "admin":
                 users[username]["role"] = "admin"
             save_users(users)
-            client_socket.send("✅ Registrazione completata! Ora puoi fare il login.".encode("utf-8"))
+            client_socket.send("✅ Registrazione completata! Ora puoi fare il login.".encode())
 
         elif action == "login":
             if username not in users or users[username]["password"] != hashed_password:
-                client_socket.send("❌ Autenticazione fallita!".encode("utf-8"))
+                client_socket.send("❌ Autenticazione fallita!".encode())
                 client_socket.close()
                 return
             role = users[username]["role"]
-            client_socket.send(f"✅ Autenticazione riuscita! Ruolo: {role}".encode("utf-8"))
+            client_socket.send(f"✅ Autenticazione riuscita! Ruolo: {role}".encode())
 
         else:
-            client_socket.send("❌ Azione non valida!".encode("utf-8"))
+            client_socket.send("❌ Azione non valida!".encode())
             client_socket.close()
             return
 
@@ -75,7 +82,7 @@ def handle_client(client_socket, addr):
 
             if data.strip() == "/exit":
                 print(f"🔌 {username} si è disconnesso correttamente.")
-                client_socket.send("✅ Disconnessione riuscita.".encode("utf-8"))
+                client_socket.send("✅ Disconnessione riuscita.".encode())
                 client_socket.close()
                 break
 
@@ -84,55 +91,42 @@ def handle_client(client_socket, addr):
                 help_text += "────────────────────────────────\n"
                 help_text += "✅ `/exit` - 🔌 Disconnettersi\n"
                 if users[username]["role"] == "admin":
-                    help_text += "✅ `/shutdown` - 🛑 Spegnere il server\n"
-                    help_text += "✅ `/restart` - 🔄 Riavviare il server\n"
+                    help_text += "✅ `/shutdown` - 🔴 Spegnere il server (solo admin)\n"
+                    help_text += "✅ `/restart` - 🔄 Riavviare il server (solo admin)\n"
                 help_text += "────────────────────────────────"
-                client_socket.send(help_text.encode("utf-8"))
+                client_socket.send(help_text.encode())
                 continue
 
             if data.strip() == "/shutdown":
                 if users[username]["role"] == "admin":
                     print(f"🛑 {username} (ADMIN) ha spento il server!")
-                    client_socket.send("🛑 Il server si sta spegnendo...".encode("utf-8"))
+                    client_socket.send("🛑 Il server si sta spegnendo...".encode())
                     server_running = False
                     client_socket.close()
                     break
                 else:
-                    client_socket.send("❌ Permesso negato! Solo un admin può spegnere il server.".encode("utf-8"))
+                    client_socket.send("❌ Permesso negato! Solo un admin può spegnere il server.".encode())
 
             if data.strip() == "/restart":
                 if users[username]["role"] == "admin":
                     print(f"🔄 {username} (ADMIN) ha riavviato il server!")
-                    client_socket.send("🔄 Il server si sta riavviando...".encode("utf-8"))
+                    client_socket.send("🔄 Il server si sta riavviando...".encode())
                     os.execv(__file__, ["python"] + sys.argv)
                 else:
-                    client_socket.send("❌ Permesso negato! Solo un admin può riavviare il server.".encode("utf-8"))
+                    client_socket.send("❌ Permesso negato! Solo un admin può riavviare il server.".encode())
 
-            print(f"📩 Ricevuto da {username} ({addr}): {data}")
-            client_socket.send("📩 Messaggio ricevuto dal server".encode("utf-8"))
+            print(f"{CYAN}📥 Ricevuto da {username}: {data}{RESET}")
+
     except Exception as e:
-        print(f"⚠️ Errore con {addr}: {e}")
-
-    client_socket.close()
-
-def start_vpn_server(host="0.0.0.0", port=8080):
-    global server_running
-    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server.bind((host, port))
-    server.listen(5)
-    print(f"🟢 Server VPN in ascolto su {host}:{port}")
-
-    while server_running:
-        try:
-            server.settimeout(1)
-            client_socket, addr = server.accept()
-            client_handler = threading.Thread(target=handle_client, args=(client_socket, addr))
-            client_handler.start()
-        except socket.timeout:
-            continue
-
-    print("🔻 Server VPN spento correttamente.")
-    server.close()
+        print(f"{RED}❌ Errore: {e}{RESET}")
 
 if __name__ == "__main__":
-    start_vpn_server()
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.bind(("0.0.0.0", 8080))
+    server.listen(5)
+    print(f"{GREEN}🟢 Server VPN in ascolto su 0.0.0.0:8080{RESET}")
+
+    while server_running:
+        client_socket, addr = server.accept()
+        client_handler = threading.Thread(target=handle_client, args=(client_socket, addr))
+        client_handler.start()
