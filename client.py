@@ -4,6 +4,10 @@ from Crypto.Cipher import AES
 
 SECRET_KEY = b"0123456789abcdef"
 
+# Definizione colori ANSI
+RESET = "\033[0m"   # Reset colore
+GREEN = "\033[92m"  # Verde brillante
+
 def encrypt_data(data):
     cipher = AES.new(SECRET_KEY, AES.MODE_EAX)
     return cipher.nonce + cipher.encrypt(data.encode())
@@ -58,7 +62,7 @@ def connect_to_vpn(server_ip="127.0.0.1", server_port=8080):
     show_help(role)
 
     while True:
-        message = input("💬 Scrivi un messaggio: ")
+        message = input(f"💬 Scrivi un messaggio [{GREEN}{username}{RESET}]: ")
 
         if message.strip().lower() == "/exit":
             client.send(encrypt_data("/exit"))
