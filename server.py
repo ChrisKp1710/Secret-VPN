@@ -10,12 +10,15 @@ USER_DB_FILE = "users.db"
 SECRET_KEY = b"0123456789abcdef"
 server_running = True  
 
+# Dizionario per tenere traccia degli utenti connessi
+connected_clients = {}
+
 # Definizione colori ANSI
-RESET = "\033[0m"   # Reset colore
-GREEN = "\033[92m"  # Verde brillante
-RED = "\033[91m"    # Rosso per errori
-CYAN = "\033[96m"   # Ciano per ricezione messaggi
-YELLOW = "\033[93m" # Giallo per avvisi
+RESET = "\033[0m"
+GREEN = "\033[92m"
+RED = "\033[91m"
+CYAN = "\033[96m"
+YELLOW = "\033[93m"
 
 def load_users():
     if not os.path.exists(USER_DB_FILE):
@@ -35,6 +38,16 @@ def decrypt_data(data):
     ciphertext = data[16:]
     cipher = AES.new(SECRET_KEY, AES.MODE_EAX, nonce=nonce)
     return cipher.decrypt(ciphertext).decode()
+
+def broadcast(message, sender_socket):
+    """ Invia un messaggio a tutti i client tranne chi lo ha inviato """
+    for client, username in connected_clients.items():
+        if client != sender_socket:
+            try:
+                client.send(message.encode())
+            except:
+                client.close()
+                del connected_clients[client]
 
 def handle_client(client_socket, addr):
     global server_running
@@ -67,6 +80,7 @@ def handle_client(client_socket, addr):
                 return
             role = users[username]["role"]
             client_socket.send(f"✅ Autenticazione riuscita! Ruolo: {role}".encode())
+            connected_clients[client_socket] = username  # Aggiunge il client alla lista
 
         else:
             client_socket.send("❌ Azione non valida!".encode())
@@ -83,6 +97,7 @@ def handle_client(client_socket, addr):
             if data.strip() == "/exit":
                 print(f"🔌 {username} si è disconnesso correttamente.")
                 client_socket.send("✅ Disconnessione riuscita.".encode())
+                del connected_clients[client_socket]  # Rimuove il client
                 client_socket.close()
                 break
 
@@ -117,13 +132,20 @@ def handle_client(client_socket, addr):
 
             print(f"{CYAN}📥 Ricevuto da {username}: {data}{RESET}")
 
+            # Invia il messaggio a tutti i client
+            broadcast(f"📩 [{username}]: {data}", client_socket)
+
     except Exception as e:
         print(f"{RED}❌ Errore: {e}{RESET}")
+    finally:
+        if client_socket in connected_clients:
+            del connected_clients[client_socket]
+        client_socket.close()
 
 if __name__ == "__main__":
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.bind(("0.0.0.0", 8080))
-    server.listen(5)
+    server.listen(10)  # Supporta fino a 10 connessioni simultanee
     print(f"{GREEN}🟢 Server VPN in ascolto su 0.0.0.0:8080{RESET}")
 
     while server_running:
