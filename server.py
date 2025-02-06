@@ -1,10 +1,10 @@
 import socket
 import threading
 from Crypto.Cipher import AES
-import os
 
-# Chiave segreta AES (deve essere condivisa tra client e server)
+# Chiave segreta condivisa tra client e server
 SECRET_KEY = b"0123456789abcdef"
+AUTH_KEY = "supersegreta"  # Chiave di autenticazione
 
 def decrypt_data(data):
     """Decifra i dati ricevuti dal client"""
@@ -15,8 +15,19 @@ def decrypt_data(data):
 
 def handle_client(client_socket, addr):
     print(f"Connessione accettata da {addr}")
-    while True:
-        try:
+
+    try:
+        # Riceve la chiave di autenticazione
+        auth_key = client_socket.recv(1024).decode().strip()
+        if auth_key != AUTH_KEY:
+            print(f"❌ Connessione rifiutata da {addr}: chiave errata!")
+            client_socket.send(b"Autenticazione fallita!")
+            client_socket.close()
+            return
+
+        client_socket.send(b"Autenticazione riuscita!")
+
+        while True:
             encrypted_data = client_socket.recv(4096)
             if not encrypted_data:
                 break
@@ -25,12 +36,10 @@ def handle_client(client_socket, addr):
             data = decrypt_data(encrypted_data)
             print(f"Ricevuto da {addr}: {data.decode()}")
 
-            # Risposta (opzionale)
-            response = b"Messaggio ricevuto dal server"
-            client_socket.send(response)
-        except Exception as e:
-            print(f"Errore con {addr}: {e}")
-            break
+            # Risposta
+            client_socket.send(b"Messaggio ricevuto dal server")
+    except Exception as e:
+        print(f"Errore con {addr}: {e}")
 
     client_socket.close()
 
