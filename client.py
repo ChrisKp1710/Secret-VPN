@@ -4,29 +4,23 @@ from Crypto.Cipher import AES
 SECRET_KEY = b"0123456789abcdef"
 
 def encrypt_data(data):
-    """Cifra i dati prima di inviarli al server"""
     cipher = AES.new(SECRET_KEY, AES.MODE_EAX)
     return cipher.nonce + cipher.encrypt(data.encode())
 
 def connect_to_vpn(server_ip="127.0.0.1", server_port=8080):
-    """Si connette al server VPN"""
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client.connect((server_ip, server_port))
     print(f"Connesso a {server_ip}:{server_port}")
 
-    # Scelta tra registrazione o login
     action = input("Vuoi registrarti o loggarti? (register/login): ").strip().lower()
     client.send(action.encode())
 
-    # Inserire username e password
     username = input("Username: ")
     password = input("Password: ")
 
-    # Cifrare username e password
     credentials = f"{username}|{password}"
     encrypted_credentials = encrypt_data(credentials)
 
-    # Invia le credenziali crittografate
     client.send(encrypted_credentials)
     auth_response = client.recv(1024).decode()
 
@@ -37,11 +31,10 @@ def connect_to_vpn(server_ip="127.0.0.1", server_port=8080):
 
     print(f"✅ {auth_response}")
 
-    # **Auto-login dopo la registrazione**
     if action == "register":
         print("🔄 Effettuando automaticamente il login...")
-        client.send(b"login")  # Comunica al server che ora sta eseguendo il login
-        client.send(encrypted_credentials)  # Reinvia le stesse credenziali per il login
+        client.send(b"login")
+        client.send(encrypted_credentials)
         login_response = client.recv(1024).decode()
 
         if "Autenticazione fallita" in login_response:
@@ -51,11 +44,17 @@ def connect_to_vpn(server_ip="127.0.0.1", server_port=8080):
 
         print(f"✅ {login_response}")
 
-    # Inizio chat con il server
     while True:
-        message = input("Messaggio da inviare: ")
-        encrypted_message = encrypt_data(message)
+        message = input("Messaggio da inviare (/exit per disconnetterti): ")
 
+        if message.strip().lower() == "/exit":
+            client.send(encrypt_data("/exit"))
+            response = client.recv(1024).decode()
+            print(f"🔌 {response}")
+            client.close()
+            break
+
+        encrypted_message = encrypt_data(message)
         client.send(encrypted_message)
         response = client.recv(4096)
         print(f"Risposta del server: {response.decode()}")
