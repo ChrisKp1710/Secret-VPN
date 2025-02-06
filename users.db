@@ -1,1 +1,14 @@
-{"prova": {"password": "6258a5e0eb772911d4f92be5b5db0e14511edbe01d1d0ddd1d5a2cb9db9a56ba", "role": "admin"}, "prova1": {"password": "e7000b89404b53e6c3c56ab26afc9f49577d339b1b3dc1ec5c13a157703aba0b", "role": "admin"}}
+{
+    "prova": {
+        "password": "6258a5e0eb772911d4f92be5b5db0e14511edbe01d1d0ddd1d5a2cb9db9a56ba",
+        "role": "admin"
+    },
+    "prova1": {
+        "password": "e7000b89404b53e6c3c56ab26afc9f49577d339b1b3dc1ec5c13a157703aba0b",
+        "role": "admin"
+    },
+    "nico": {
+        "password": "b18aaa6c6b929b866051b69a785a6cdce5bdd564d41be247c7d5ef7c2e2e2271",
+        "role": "user"
+    }
+}

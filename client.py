@@ -7,7 +7,7 @@ from Crypto.Cipher import AES
 # Chiave segreta per la crittografia
 SECRET_KEY = b"0123456789abcdef"
 
-# Colori ANSI per evidenziare i nomi utenti (su Windows usa cmder o Windows Terminal per vederli)
+# Colori ANSI per evidenziare i nomi utenti
 COLORS = {
     "reset": "\033[0m",
     "green": "\033[92m",
@@ -36,11 +36,14 @@ def show_help(role):
     print("✅ `/exit` - 🔌 Disconnettersi")
     print("✅ `/help` - ℹ️  Mostra i comandi disponibili")
     print("✅ `/clear` - 🧹 Pulisce lo schermo")
-    
+
     if role == "admin":
+        print("✅ `/list_users` - 📋 Mostra tutti gli utenti registrati")
         print("✅ `/shutdown` - 🔴 Spegnere il server (solo admin)")
         print("✅ `/restart` - 🔄 Riavviare il server (solo admin)")
-    
+        print("✅ `/promote [username]` - 🏅 Promuove un utente a admin")
+        print("✅ `/demote [username]` - 🔻 Retrocede un admin a user")
+
     print("────────────────────────────────\n")
 
 def receive_messages(client, username):
@@ -121,6 +124,24 @@ def connect_to_vpn(server_ip="127.0.0.1", server_port=8080):
 
         if message.lower() == "/clear":
             clear_screen()
+            continue
+
+        if message.lower() == "/list_users":
+            if role != "admin":
+                print("❌ Permesso negato! Solo un admin può usare questo comando.")
+                continue
+            client.send(encrypt_data(message))
+            response = client.recv(4096).decode()
+            print(response)
+            continue
+
+        if message.lower().startswith("/demote "):
+            if role != "admin":
+                print("❌ Permesso negato! Solo un admin può usare questo comando.")
+                continue
+            client.send(encrypt_data(message))
+            response = client.recv(1024).decode()
+            print(f"🔻 {response}")
             continue
 
         if message.lower() in ["/shutdown", "/restart"]:
