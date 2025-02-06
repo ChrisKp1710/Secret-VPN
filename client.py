@@ -36,14 +36,14 @@ def show_help(role):
     print("✅ `/exit` - 🔌 Disconnettersi")
     print("✅ `/help` - ℹ️  Mostra i comandi disponibili")
     print("✅ `/clear` - 🧹 Pulisce lo schermo")
-
+    
     if role == "admin":
-        print("✅ `/list_users` - 📋 Mostra tutti gli utenti registrati")
         print("✅ `/shutdown` - 🔴 Spegnere il server (solo admin)")
         print("✅ `/restart` - 🔄 Riavviare il server (solo admin)")
+        print("✅ `/list_users` - 📋 Mostra tutti gli utenti registrati")
         print("✅ `/promote [username]` - 🏅 Promuove un utente a admin")
         print("✅ `/demote [username]` - 🔻 Retrocede un admin a user")
-
+    
     print("────────────────────────────────\n")
 
 def receive_messages(client, username):
@@ -59,13 +59,18 @@ def receive_messages(client, username):
                 print(f"\n✅ {response}")
                 break
 
-            # Cancella la riga corrente per evitare spostamenti brutti
+            # Gestisce la risposta di /list_users senza bloccare il prompt
+            if response.startswith("\n👥 **Utenti registrati:**"):
+                print(response)
+                print(f"💬 Scrivi un messaggio {colorize_username(username)}: ", end="", flush=True)
+                continue
+
+            # Cancella la riga corrente per evitare problemi di layout
             sys.stdout.write("\033[K")  
             print(f"\n💬 {response}")  
 
-            # Ripristina il prompt solo se non è una disconnessione
-            if "Connessione persa" not in response:
-                print(f"💬 Scrivi un messaggio {colorize_username(username)}: ", end="", flush=True)
+            # Ripristina il prompt
+            print(f"💬 Scrivi un messaggio {colorize_username(username)}: ", end="", flush=True)
         except:
             print("\n❌ Connessione persa con il server.")
             break
@@ -131,17 +136,15 @@ def connect_to_vpn(server_ip="127.0.0.1", server_port=8080):
                 print("❌ Permesso negato! Solo un admin può usare questo comando.")
                 continue
             client.send(encrypt_data(message))
-            response = client.recv(4096).decode()
-            print(response)
-            continue
+            continue  # Non bloccare il prompt
 
-        if message.lower().startswith("/demote "):
+        if message.lower().startswith("/promote") or message.lower().startswith("/demote"):
             if role != "admin":
                 print("❌ Permesso negato! Solo un admin può usare questo comando.")
                 continue
             client.send(encrypt_data(message))
             response = client.recv(1024).decode()
-            print(f"🔻 {response}")
+            print(f"🏅 {response}")
             continue
 
         if message.lower() in ["/shutdown", "/restart"]:
