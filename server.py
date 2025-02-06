@@ -1,42 +1,84 @@
 import socket
 import threading
+import hashlib
+import json
+import os
 from Crypto.Cipher import AES
 
-# Chiave segreta condivisa tra client e server
+# File database utenti
+USER_DB_FILE = "users.db"
+
+# Chiave di crittografia AES
 SECRET_KEY = b"0123456789abcdef"
-AUTH_KEY = "supersegreta"  # Chiave di autenticazione
+
+def load_users():
+    """Carica il database utenti da file"""
+    if not os.path.exists(USER_DB_FILE):
+        return {}
+    with open(USER_DB_FILE, "r") as f:
+        return json.load(f)
+
+def save_users(users):
+    """Salva il database utenti su file"""
+    with open(USER_DB_FILE, "w") as f:
+        json.dump(users, f)
+
+def hash_password(password):
+    """Restituisce l'hash della password"""
+    return hashlib.sha256(password.encode()).hexdigest()
 
 def decrypt_data(data):
     """Decifra i dati ricevuti dal client"""
     nonce = data[:16]
     ciphertext = data[16:]
     cipher = AES.new(SECRET_KEY, AES.MODE_EAX, nonce=nonce)
-    return cipher.decrypt(ciphertext)
+    return cipher.decrypt(ciphertext).decode()
 
 def handle_client(client_socket, addr):
     print(f"Connessione accettata da {addr}")
 
     try:
-        # Riceve la chiave di autenticazione
-        auth_key = client_socket.recv(1024).decode().strip()
-        if auth_key != AUTH_KEY:
-            print(f"❌ Connessione rifiutata da {addr}: chiave errata!")
-            client_socket.send(b"Autenticazione fallita!")
+        # Riceve l'azione (registrazione o login)
+        action = client_socket.recv(1024).decode().strip()
+
+        # Riceve username e password crittografati
+        encrypted_creds = client_socket.recv(4096)
+        credentials = decrypt_data(encrypted_creds)
+        username, password = credentials.split("|")
+
+        users = load_users()
+        hashed_password = hash_password(password)
+
+        if action == "register":
+            if username in users:
+                client_socket.send("Errore: Username già registrato!".encode('utf-8'))
+                client_socket.close()
+                return
+            users[username] = hashed_password
+            save_users(users)
+            client_socket.send(b"Registrazione completata! Ora puoi fare il login.")
+
+        elif action == "login":
+            if username not in users or users[username] != hashed_password:
+                client_socket.send(b"Autenticazione fallita!")
+                client_socket.close()
+                return
+            client_socket.send(b"Autenticazione riuscita!")
+
+        else:
+            client_socket.send(b"Azione non valida!")
             client_socket.close()
             return
 
-        client_socket.send(b"Autenticazione riuscita!")
-
+        # Loop per ricevere messaggi
         while True:
             encrypted_data = client_socket.recv(4096)
             if not encrypted_data:
                 break
 
-            # Decripta il messaggio
             data = decrypt_data(encrypted_data)
-            print(f"Ricevuto da {addr}: {data.decode()}")
+            print(f"Ricevuto da {username} ({addr}): {data}")
 
-            # Risposta
             client_socket.send(b"Messaggio ricevuto dal server")
     except Exception as e:
         print(f"Errore con {addr}: {e}")
